@@ -1,17 +1,21 @@
-import { error, redirect } from "@sveltejs/kit"
+import { redirect, type RequestHandler } from "@sveltejs/kit"
 
-export async function GET({ url, locals: { supabase } }) {
-    const code = url.searchParams.get("code")
-    const redirect_uri = url.searchParams.get("redirect")
+export const GET: RequestHandler = async (event) => {
+	const {
+		url,
+		locals: { supabase }
+	} = event;
+
+    const code = url.searchParams.get('code') as string;
+    const next = url.searchParams.get('next') ?? '/';
+
     if (code) {
-        const { error: code_error } = await supabase.auth.exchangeCodeForSession(code)
-        if (code_error) {
-            throw error(code_error.status || 400, "Code error")
+        const { error } = await supabase.auth.exchangeCodeForSession(code)
+        if (!error) {
+            throw redirect(303, `/${next.slice(1)}`);
         }
-        throw redirect(303, redirect_uri || "/")
     }
 
-    throw error(400, {
-        message: "Missing code",
-    })
-}
+    // return the user to an error page with instructions
+    throw redirect(303, '/auth/auth-code-error');
+};
